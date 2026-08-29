@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Philippines AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --sun-gold: #FCD116;
+    --bay-blue: #0038A8;
+    --flag-red: #CE1126;
+    --white: #FFFFFF;
+    --dark-bg: #0a0f1e;
+    --card-bg: #111827;
+    --border: rgba(252,209,22,0.2);
+    --text-main: #f0f4ff;
+    --text-muted: #8892a4;
+    --glow: 0 0 20px rgba(252,209,22,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--dark-bg);
+    color: var(--text-main);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, var(--bay-blue) 0%, #001a5c 100%);
+    padding: 16px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 2px solid var(--sun-gold);
+    box-shadow: 0 4px 20px rgba(0,56,168,0.5);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sun-logo {
+    width: 42px; height: 42px;
+    background: var(--sun-gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: var(--glow);
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--sun-gold);
+    text-shadow: 0 0 12px rgba(252,209,22,0.5);
+    line-height: 1;
+  }
+  .header-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .mood-badge {
+    margin-left: auto;
+    background: rgba(252,209,22,0.15);
+    border: 1px solid var(--sun-gold);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--sun-gold);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .mood-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sun-gold); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(1.3);} }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    white-space: nowrap;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .tab.active { color: var(--sun-gold); border-bottom-color: var(--sun-gold); }
+
+  /* PANELS */
+  .panel { display: none; flex-direction: column; flex: 1; }
+  .panel.active { display: flex; }
+
+  /* CHAT */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+  }
+  .chat-area::-webkit-scrollbar { width: 3px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .bubble {
+    max-width: 85%;
+    padding: 12px 15px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    animation: slideIn .25s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+  .bubble.user {
+    background: linear-gradient(135deg, var(--bay-blue), #0052cc);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.ai {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.ai .emotion-tag {
+    font-size: 10px;
+    color: var(--sun-gold);
+    margin-bottom: 5px;
+    font-weight: 600;
+    letter-spacing: .5px;
+  }
+
+  .typing-indicator {
+    display: none;
+    align-self: flex-start;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+    padding: 14px 18px;
+    gap: 5px;
+    flex-direction: row;
+    align-items: center;
+  }
+  .typing-indicator.visible { display: flex; }
+  .typing-dot {
+    width: 7px; height: 7px;
+    background: var(--sun-gold);
+    border-radius: 50%;
+    animation: bounce .9s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: .15s; }
+  .typing-dot:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-6px);} }
+
+  /* INPUT BAR */
+  .input-bar {
+    padding: 12px 14px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .input-bar textarea {
+    flex: 1;
+    background: var(--dark-bg);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 10px 16px;
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    min-height: 44px;
+    line-height: 1.4;
+    transition: border-color .2s;
+  }
+  .input-bar textarea:focus { border-color: var(--sun-gold); }
+  .input-bar textarea::placeholder { color: var(--text-muted); }
+
+  .icon-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .btn-mic { background: rgba(206,17,38,0.2); color: var(--flag-red); border: 1px solid var(--flag-red); }
+  .btn-mic.recording { background: var(--flag-red); color: white; animation: pulse 1s infinite; }
+  .btn-send { background: var(--sun-gold); color: var(--dark-bg); font-weight: 700; }
+  .btn-speak { background: rgba(0,56,168,0.3); color: #6699ff; border: 1px solid rgba(0,56,168,0.5); }
+
+  /* APPS GRID */
+  .apps-panel { overflow-y: auto; padding: 14px; }
+  .apps-section { margin-bottom: 20px; }
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--sun-gold);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-left: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-label::after {
+    content: ''; flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .apps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .app-item {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    cursor: pointer;
+    padding: 8px 4px;
+    border-radius: 12px;
+    transition: all .2s;
+    border: 1px solid transparent;
+  }
+  .app-item:active { background: rgba(252,209,22,0.1); border-color: var(--border); transform: scale(.95); }
+  .app-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+    max-width: 60px;
+    word-break: break-word;
+  }
+
+  /* HISTORY PANEL */
+  .history-panel { overflow-y: auto; padding: 14px; }
+  .history-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .history-item:hover { border-color: var(--sun-gold); }
+  .history-q { font-size: 13px; color: var(--text-main); font-weight: 500; margin-bottom: 4px; }
+  .history-a { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-meta { font-size: 10px; color: rgba(252,209,22,0.6); margin-top: 6px; }
+
+  /* LEARN PANEL */
+  .learn-panel { overflow-y: auto; padding: 14px; }
+  .learn-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .learn-card h3 { font-size: 13px; color: var(--sun-gold); margin-bottom: 8px; font-weight: 600; }
+  .learn-card p { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .learn-stat { display: flex; justify-content: space-between; margin-top: 8px; }
+  .stat-item { text-align: center; }
+  .stat-val { font-size: 20px; font-weight: 700; color: var(--sun-gold); }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); }
+
+  #tf-chart {
+    width: 100%; height: 80px;
+    background: rgba(0,56,168,0.1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-bar {
+    position: absolute;
+    bottom: 0;
+    background: linear-gradient(to top, var(--bay-blue), var(--sun-gold));
+    border-radius: 3px 3px 0 0;
+    transition: height .5s ease;
+    width: 6px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(252,209,22,0.95);
+    color: var(--dark-bg);
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Welcome */
+  .welcome-card {
+    background: linear-gradient(135deg, rgba(0,56,168,0.3), rgba(252,209,22,0.1));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .welcome-card h2 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--sun-gold); margin-bottom: 6px; }
+  .welcome-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .quick-btns { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; justify-content: center; }
+  .quick-btn {
+    background: rgba(252,209,22,0.1);
+    border: 1px solid rgba(252,209,22,0.3);
+    color: var(--sun-gold);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .quick-btn:active { background: rgba(252,209,22,0.2); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="sun-logo">☀️</div>
+    <div>
+      <div class="header-title">Philippines AI</div>
+      <div class="header-sub">Mabuhay · Your Filipino Companion</div>
+    </div>
+    <div class="mood-badge">
+      <div class="mood-dot"></div>
+      <span id="mood-label">Ready</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('chat')">💬 Chat</div>
+  <div class="tab" onclick="switchTab('apps')">📱 Apps</div>
+  <div class="tab" onclick="switchTab('history')">📋 History</div>
+  <div class="tab" onclick="switchTab('learn')">🧠 AI Learn</div>
+</div>
+
+<!-- CHAT PANEL -->
+<div class="panel active" id="panel-chat" style="min-height:0;">
+  <div class="chat-area" id="chat-area">
+    <div class="welcome-card">
+      <h2>Mabuhay! 🇵🇭</h2>
+      <p>I'm your Filipino AI companion — knowledgeable about Philippine history, culture, and government. Ask me anything or open any app!</p>
+      <div class="quick-btns">
+        <div class="quick-btn" onclick="quickAsk('Tell me about Jose Rizal')">Jose Rizal</div>
+        <div class="quick-btn" onclick="quickAsk('What is the EDSA Revolution?')">EDSA Revolution</div>
+        <div class="quick-btn" onclick="quickAsk('Who were the pre-colonial rulers of the Philippines?')">Pre-colonial PH</div>
+        <div class="quick-btn" onclick="quickAsk('What are the Philippine government branches?')">Gov Branches</div>
+        <div class="quick-btn" onclick="quickAsk('Tell me about the Marcos era')">Marcos Era</div>
+        <div class="quick-btn" onclick="quickAsk('History of Bataan Death March')">Bataan March</div>
+      </div>
+    </div>
+    <div class="typing-indicator" id="typing">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  </div>
+  <div class="input-bar">
+    <button class="icon-btn btn-mic" id="mic-btn" onclick="toggleMic()" title="Voice Input">🎤</button>
+    <textarea id="user-input" placeholder="Ask about Philippine history, culture, government…" rows="1"
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="icon-btn btn-speak" onclick="toggleSpeak()" id="speak-btn" title="Toggle Speech">🔊</button>
+    <button class="icon-btn btn-send" onclick="sendMessage()" title="Send">➤</button>
+  </div>
+</div>
+
+<!-- APPS PANEL -->
+<div class="panel" id="panel-apps">
+  <div class="apps-panel" id="apps-container"></div>
+</div>
+
+<!-- HISTORY PANEL -->
+<div class="panel" id="panel-history">
+  <div class="history-panel" id="history-container">
+    <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">
+      No conversation history yet.<br>Start chatting to build your history.
+    </div>
+  </div>
+</div>
+
+<!-- LEARN PANEL -->
+<div class="panel" id="panel-learn">
+  <div class="learn-panel">
+    <div class="learn-card">
+      <h3>🧠 TensorFlow.js Learning Engine</h3>
+      <p>Philippines AI learns from every query and response using an on-device neural network. The more you chat, the smarter and more personalized the AI becomes.</p>
+      <div class="learn-stat">
+        <div class="stat-item"><div class="stat-val" id="stat-queries">0</div><div class="stat-lbl">Queries</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-patterns">0</div><div class="stat-lbl">Patterns</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-accuracy">0%</div><div class="stat-lbl">Accuracy</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-vocab">0</div><div class="stat-lbl">Vocab</div></div>
+      </div>
+      <div id="tf-chart"></div>
+    </div>
+    <div class="learn-card">
+      <h3>💡 Emotional Intelligence</h3>
+      <p>The AI detects emotional context in your messages — joy, concern, curiosity, sadness — and adjusts its tone and response accordingly using sentiment analysis.</p>
+    </div>
+    <div class="learn-card">
+      <h3>🗣️ Speech Synthesis</h3>
+      <p>Tap 🔊 in the chat to enable text-to-speech. Philippines AI speaks responses aloud using your device's speech engine, supporting Filipino and English.</p>
+    </div>
+    <div class="learn-card">
+      <h3>🎤 Voice Recognition</h3>
+      <p>Tap the microphone button to speak your query directly. Uses your browser's Web Speech API to transcribe your voice in real time.</p>
+    </div>
+    <div class="learn-card" id="top-topics-card">
+      <h3>📊 Top Topics You've Explored</h3>
+      <p id="top-topics-text" style="color:var(--text-muted);font-size:12px;">Chat to see your top topics appear here.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ─────────────────────────────────────────────────────────────────
+const state = {
+  speaking: true,
+  recording: false,
+  history: [],
+  queryCount: 0,
+  patternCount: 0,
+  vocab: new Set(),
+  topicMap: {},
+  chartData: [],
+  recognition: null,
+  synth: window.speechSynthesis,
+  model: null,
+  tokenizer: {},
+  tokenizerSize: 0,
+};
+
+// ─── APPS DATA ──────────────────────────────────────────────────────────────
+const APPS = {
+  "Social Media": [
+    { name:"Facebook", icon:"📘", bg:"#1877f2", url:"https://facebook.com" },
+    { name:"Instagram", icon:"📷", bg:"linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)", url:"https://instagram.com" },
+    { name:"Twitter/X", icon:"𝕏", bg:"#000", url:"https://x.com" },
+    { name:"TikTok", icon:"🎵", bg:"#010101", url:"https://tiktok.com" },
+    { name:"YouTube", icon:"▶️", bg:"#ff0000", url:"https://youtube.com" },
+    { name:"LinkedIn", icon:"💼", bg:"#0a66c2", url:"https://linkedin.com" },
+    { name:"Threads", icon:"🧵", bg:"#000", url:"https://threads.net" },
+    { name:"Pinterest", icon:"📌", bg:"#e60023", url:"https://pinterest.com" },
+    { name:"Snapchat", icon:"👻", bg:"#fffc00", url:"https://snapchat.com" },
+    { name:"Reddit", icon:"🤖", bg:"#ff4500", url:"https://reddit.com" },
+    { name:"WhatsApp", icon:"💬", bg:"#25d366", url:"https://web.whatsapp.com" },
+    { name:"Telegram", icon:"✈️", bg:"#2ca5e0", url:"https://web.telegram.org" },
+    { name:"Viber", icon:"📞", bg:"#7360f2", url:"https://viber.com" },
+    { name:"Messenger", icon:"💌", bg:"#0084ff", url:"https://messenger.com" },
+    { name:"Discord", icon:"🎮", bg:"#5865f2", url:"https://discord.com" },
+    { name:"Tumblr", icon:"📝", bg:"#35465c", url:"https://tumblr.com" },
+  ],
+  "Search Engines": [
+    { name:"Google", icon:"🔍", bg:"#fff", url:"https://google.com" },
+    { name:"Bing", icon:"🔎", bg:"#0078d4", url:"https://bing.com" },
+    { name:"DuckDuckGo", icon:"🦆", bg:"#de5833", url:"https://duckduckgo.com" },
+    { name:"Yahoo", icon:"🟣", bg:"#7b0099", url:"https://yahoo.com" },
+    { name:"Baidu", icon:"🐻", bg:"#2319dc", url:"https://baidu.com" },
+    { name:"Yandex", icon:"🔴", bg:"#ff0000", url:"https://yandex.com" },
+    { name:"Brave", icon:"🦁", bg:"#fb542b", url:"https://search.brave.com" },
+    { name:"Ecosia", icon:"🌿", bg:"#5aaa00", url:"https://ecosia.org" },
+  ],
+  "TV & Streaming": [
+    { name:"SMNI TV", icon:"📺", bg:"linear-gradient(135deg,#b8860b,#8b0000)", url:"https://smni.tv" },
+    { name:"CNN PH", icon:"🔴", bg:"#cc0000", url:"https://cnnphilippines.com/video" },
+    { name:"ABS-CBN", icon:"🟦", bg:"#0033a0", url:"https://news.abs-cbn.com" },
+    { name:"GMA", icon:"🟩", bg:"#006633", url:"https://gmanetwork.com" },
+    { name:"TV5", icon:"🟧", bg:"#f26522", url:"https://news5.tv5.com.ph" },
+    { name:"DZRH News", icon:"📻", bg:"#c00", url:"https://dzrhnews.com.ph" },
+    { name:"One News", icon:"📡", bg:"#231f20", url:"https://onenews.ph" },
+    { name:"Netflix", icon:"🎬", bg:"#e50914", url:"https://netflix.com" },
+    { name:"YouTube", icon:"▶️", bg:"#ff0000", url:"https://youtube.com" },
+  ],
+  "AI Tools": [
+    { name:"Claude", icon:"🤖", bg:"#cc785c", url:"https://claude.ai" },
+    { name:"ChatGPT", icon:"🧠", bg:"#10a37f", url:"https://chat.openai.com" },
+    { name:"Gemini", icon:"✨", bg:"#4285f4", url:"https://gemini.google.com" },
+    { name:"Copilot", icon:"🪟", bg:"#0078d4", url:"https://copilot.microsoft.com" },
+    { name:"Perplexity", icon:"🔭", bg:"#1d2d50", url:"https://perplexity.ai" },
+    { name:"Grok", icon:"⚡", bg:"#1da1f2", url:"https://grok.x.ai" },
+    { name:"Midjourney", icon:"🎨", bg:"#000", url:"https://midjourney.com" },
+    { name:"DALL-E", icon:"🖼️", bg:"#412991", url:"https://openai.com/dall-e" },
+    { name:"Stable Diff.", icon:"🌌", bg:"#1a1a2e", url:"https://stability.ai" },
+    { name:"HuggingFace", icon:"🤗", bg:"#ff9d00", url:"https://huggingface.co" },
+    { name:"Mistral", icon:"🌪️", bg:"#f97316", url:"https://mistral.ai" },
+    { name:"Meta AI", icon:"🦙", bg:"#0066ff", url:"https://meta.ai" },
+    { name:"Poe", icon:"⚡", bg:"#8b5cf6", url:"https://poe.com" },
+    { name:"You.com", icon:"🔮", bg:"#6366f1", url:"https://you.com" },
+    { name:"Pi AI", icon:"π", bg:"#00b4d8", url:"https://pi.ai" },
+    { name:"Runway", icon:"🎥", bg:"#1a1a1a", url:"https://runwayml.com" },
+  ],
+  "Philippine Government": [
+    { name:"Official Gazette", icon:"🇵🇭", bg:"#003399", url:"https://officialgazette.gov.ph" },
+    { name:"Senate", icon:"⚖️", bg:"#003399", url:"https://senate.gov.ph" },
+    { name:"House of Reps", icon:"🏛️", bg:"#006400", url:"https://congress.gov.ph" },
+    { name:"Supreme Court", icon:"🔱", bg:"#8b0000", url:"https://sc.judiciary.gov.ph" },
+    { name:"Malacañang", icon:"👑", bg:"#003399", url:"https://malacanang.gov.ph" },
+    { name:"DILG", icon:"🏠", bg:"#00308f", url:"https://dilg.gov.ph" },
+    { name:"DOH", icon:"🏥", bg:"#ff0000", url:"https://doh.gov.ph" },
+    { name:"DepEd", icon:"📚", bg:"#003399", url:"https://deped.gov.ph" },
+    { name:"DOLE", icon:"👷", bg:"#003399", url:"https://dole.gov.ph" },
+    { name:"DTI", icon:"💼", bg:"#003399", url:"https://dti.gov.ph" },
+    { name:"DSWD", icon:"❤️", bg:"#003399", url:"https://dswd.gov.ph" },
+    { name:"DENR", icon:"🌿", bg:"#006400", url:"https://denr.gov.ph" },
+    { name:"DFA", icon:"🌐", bg:"#003399", url:"https://dfa.gov.ph" },
+    { name:"DOT", icon:"🏖️", bg:"#003399", url:"https://tourism.gov.ph" },
+    { name:"DOST", icon:"🔬", bg:"#003399", url:"https://dost.gov.ph" },
+    { name:"BIR", icon:"💰", bg:"#8b0000", url:"https://bir.gov.ph" },
+    { name:"SSS", icon:"👴", bg:"#003399", url:"https://sss.gov.ph" },
+    { name:"PhilHealth", icon:"💊", bg:"#003399", url:"https://philhealth.gov.ph" },
+    { name:"Pag-IBIG", icon:"🏡", bg:"#003399", url:"https://pagibigfund.gov.ph" },
+    { name:"COMELEC", icon:"🗳️", bg:"#003399", url:"https://comelec.gov.ph" },
+    { name:"COA", icon:"🧾", bg:"#003399", url:"https://coa.gov.ph" },
+    { name:"CSC", icon:"📋", bg:"#003399", url:"https://csc.gov.ph" },
+    { name:"GSIS", icon:"🛡️", bg:"#003399", url:"https://gsis.gov.ph" },
+    { name:"PNP", icon:"🚔", bg:"#003399", url:"https://pnp.gov.ph" },
+    { name:"AFP", icon:"⭐", bg:"#003399", url:"https://afp.mil.ph" },
+    { name:"PSA", icon:"📊", bg:"#003399", url:"https://psa.gov.ph" },
+    { name:"NEDA", icon:"📈", bg:"#003399", url:"https://neda.gov.ph" },
+    { name:"BSP", icon:"🏦", bg:"#003399", url:"https://bsp.gov.ph" },
+    { name:"SEC", icon:"📜", bg:"#003399", url:"https://sec.gov.ph" },
+    { name:"PHIVOLCS", icon:"🌋", bg:"#8b0000", url:"https://phivolcs.dost.gov.ph" },
+    { name:"PAGASA", icon:"🌤️", bg:"#003399", url:"https://pagasa.dost.gov.ph" },
+    { name:"LTO", icon:"🚗", bg:"#003399", url:"https://lto.gov.ph" },
+    { name:"NBI", icon:"🔍", bg:"#003399", url:"https://nbi.gov.ph" },
+  ]
+};
+
+// ─── PHILIPPINE HISTORY KNOWLEDGE BASE ──────────────────────────────────────
+const PH_KNOWLEDGE = {
+  // Pre-colonial
+  "pre-colonial": "Before Spanish colonization, the Philippine archipelago was home to diverse indigenous peoples. Barangays — small communities of 30–100 families — were the basic political unit, led by datus. The islands had active trade with China, India, Borneo, and the Malay world. The Tagalogs, Visayans, Ilocanos, Kapampangans, and many other ethno-linguistic groups had rich cultures, writing systems (Baybayin), and sophisticated trade networks. The Sultanate of Sulu and Sultanate of Maguindanao were powerful Islamic states in Mindanao and Sulu.",
+  "jose rizal": "Dr. José Protasio Rizal Mercado y Alonso Realonda (June 19, 1861 – December 30, 1896) is the national hero of the Philippines. Born in Calamba, Laguna, he was a polymath: novelist, poet, ophthalmologist, sculptor, and political activist. His novels Noli Me Tángere (1887) and El Filibusterismo (1891) exposed Spanish colonial abuses and ignited Filipino nationalism. He founded La Liga Filipina in 1892. Falsely accused of rebellion, he was executed by firing squad at Bagumbayan (now Luneta) on December 30, 1896 — a date now commemorated as Rizal Day.",
+  "spanish colonial": "Spain colonized the Philippines from 1565 to 1898 — 333 years. Ferdinand Magellan landed in Cebu in 1521 and was killed in the Battle of Mactan by Datu Lapu-Lapu. Miguel López de Legazpi established the first permanent Spanish settlement in Cebu (1565) and later founded Manila in 1571. The colonial period saw the conversion of most Filipinos to Roman Catholicism, the galleon trade between Manila and Acapulco, the encomienda system, forced labor, and the Reducción policy. Revolts against Spanish rule included the Dagohoy Rebellion (1744–1829), the longest revolt in Philippine history.",
+  "katipunan": "The Kataastaasan Kagalanggalangang Katipunan ng mga Anak ng Bayan (KKK), commonly called the Katipunan, was a Philippine revolutionary society founded on July 7, 1892 by Andrés Bonifacio, Deodato Arellano, and others. Bonifacio — the 'Father of the Philippine Revolution' — organized mass membership among the poor. The Cry of Pugad Lawin (August 23, 1896) marked the start of the Philippine Revolution. Internal conflict led to the Tejeros Convention (March 1897), where Emilio Aguinaldo was elected President, after which Bonifacio was arrested and executed on May 10, 1897.",
+  "emilio aguinaldo": "Emilio Aguinaldo y Famy (March 22, 1869 – February 6, 1964) was the first President of the Philippines and a key figure in the Revolution against Spain and the Philippine-American War. He declared Philippine independence on June 12, 1898 in Kawit, Cavite — now celebrated as Philippine Independence Day. He signed the Pact of Biak-na-Bato (1897) into exile in Hong Kong, returned with American support after the Spanish-American War, but eventually surrendered to the Americans in 1901 after his capture at Palanan, Isabela.",
+  "independence 1898": "The Philippines declared independence from Spain on June 12, 1898, at Aguinaldo's house in Kawit, Cavite. General Emilio Aguinaldo proclaimed independence and the Philippine flag was unfurled for the first time. However, under the Treaty of Paris (December 10, 1898), Spain ceded the Philippines to the United States for $20 million, without Filipino consent. This led to the Philippine-American War (1899–1902), one of the bloodiest colonial wars in Asia, resulting in hundreds of thousands of Filipino deaths.",
+  "american colonial": "The American colonial period (1898–1946) transformed the Philippines through public education (Thomasites), the English language, democratic institutions, and free trade. The Jones Act of 1916 promised eventual independence. The Commonwealth of the Philippines was established in 1935 with Manuel Quezon as president. During World War II, Japan invaded in December 1941. The Bataan Death March (April 1942) was a forced 97-km march of 75,000 Filipino and American prisoners under brutal conditions, killing thousands. General Douglas MacArthur famously returned in 1944. The Philippines gained full independence on July 4, 1946.",
+  "bataan death march": "The Bataan Death March (April 9–17, 1942) was a war crime committed by the Imperial Japanese Army following the Fall of Bataan. Approximately 75,000 Filipino and American prisoners of war were forced to march 97 kilometers from Mariveles, Bataan to Camp O'Donnell in Capas, Tarlac. Prisoners were subjected to severe physical abuse, denied food and water, and those who faltered were beaten, bayoneted, or shot. An estimated 5,000–10,000 Filipinos and 600–650 Americans died during the march. April 9 is now commemorated as Araw ng Kagitingan (Day of Valor).",
+  "edsa revolution": "The People Power Revolution (February 22–25, 1986), also known as the EDSA Revolution, was a series of peaceful demonstrations along Epifanio delos Santos Avenue (EDSA) in Metro Manila that ended the 20-year authoritarian rule of Ferdinand Marcos. Triggered by the assassination of Benigno 'Ninoy' Aquino Jr. (August 21, 1983) and widespread electoral fraud in the 1986 snap election, millions of Filipinos took to the streets. Cardinal Sin called on the faithful to support rebel soldiers. Marcos fled to Hawaii, and Corazon 'Cory' Aquino was sworn in as president on February 25, 1986.",
+  "marcos era": "Ferdinand Marcos ruled the Philippines from 1965 to 1986. He declared martial law on September 21, 1972 (Proclamation No. 1081), suspending civil liberties, arresting opposition leaders including Benigno Aquino, and ruling by decree. The Marcos regime was characterized by massive corruption (an estimated $10 billion in ill-gotten wealth), human rights abuses (thousands tortured, disappeared, or killed), and crony capitalism. Despite initial economic gains, the Philippines fell into poverty and debt. His rule ended with the 1986 People Power Revolution. He died in exile in Honolulu, Hawaii in 1989.",
+  "corazon aquino": "Maria Corazon 'Cory' Sumulong Cojuangco-Aquino (January 25, 1933 – August 1, 2009) was the 11th President of the Philippines and the first female president in Asia. She came to power after the 1986 EDSA Revolution that ousted Ferdinand Marcos. Her presidency (1986–1992) restored democracy, promulgated the 1987 Constitution, survived multiple coup attempts, and began land reform. She was Time magazine's Woman of the Year in 1986. Her son, Benigno Aquino III, later served as president from 2010 to 2016.",
+  "philippine government": "The Philippines has a democratic republican form of government divided into three branches: (1) Executive — headed by the President elected for a single 6-year term; (2) Legislative — the bicameral Congress consisting of the Senate (24 senators) and the House of Representatives (up to 250+ members); (3) Judiciary — headed by the Supreme Court composed of a Chief Justice and 14 Associate Justices. The 1987 Constitution is the supreme law of the land. The Philippines has 81 provinces, 146 cities, 1,488 municipalities, and 42,046 barangays.",
+  "economy": "The Philippine economy is classified as a newly industrialized, lower-middle-income economy. Key sectors include business process outsourcing (BPO), overseas Filipino workers (OFW) remittances (~$34 billion annually), agriculture (rice, coconut, banana, sugarcane), manufacturing, and tourism. The peso (₱) is the national currency. The Philippines is a member of ASEAN, the United Nations, and the World Trade Organization. The archipelago consists of 7,641 islands, with three main island groups: Luzon, Visayas, and Mindanao. Manila is the capital, while Quezon City is the most populous city.",
+  "culture": "Filipino culture is a unique blend of indigenous Austronesian, Malay, Chinese, Spanish, American, and other Asian influences. Core values include bayanihan (community spirit), pakikisama (group harmony), utang na loob (debt of gratitude), and hiya (shame/face). The Philippines is predominantly Roman Catholic (~80%). Filipino is the national language; English is an official language. The Philippines has produced world-renowned figures including Manny Pacquiao (boxing), Lea Salonga (theater), and Charice/Jake Zyrus (music). Fiestas, lechon, adobo, sinigang, and balut are cultural staples.",
+  "lapulapu": "Datu Lapu-Lapu is considered the first Filipino hero and the first to resist foreign colonization. He was the chieftain of Mactan island (present-day Cebu) who killed Portuguese explorer Ferdinand Magellan in the Battle of Mactan on April 27, 1521. Magellan had allied with Datu Humabon of Cebu and attempted to assert Spanish supremacy over neighboring chiefs. Lapu-Lapu's forces, though outnumbered, defeated the Spanish expedition on the shallow waters of Mactan. His statue stands at the Lapu-Lapu Monument in Mactan, Cebu. April 27 is celebrated as Lapu-Lapu Day.",
+  "ninoy aquino": "Benigno Simeon 'Ninoy' Aquino Jr. (November 27, 1932 – August 21, 1983) was a Filipino senator and the most prominent opposition leader against the Marcos dictatorship. He was imprisoned in 1972 after Marcos declared martial law and was sentenced to death. He survived a hunger strike and was later allowed to go to the United States for heart surgery in 1980. He returned to the Philippines on August 21, 1983, and was assassinated on the tarmac of Manila International Airport (now named after him). His death sparked mass protests that eventually led to the 1986 People Power Revolution. August 21 is a national holiday — Ninoy Aquino Day.",
+  "world war 2 philippines": "The Philippines was occupied by Japan from 1941 to 1945. Japan attacked the Philippines on December 8, 1941, hours after Pearl Harbor. The Battle of Corregidor (1942) ended with Filipino and American forces' surrender. The Japanese established a puppet government under Jose Laurel. Filipino guerrilla fighters resisted occupation throughout the war. General Douglas MacArthur returned in October 1944, landing at Leyte — fulfilling his famous promise 'I shall return.' The Battle of Manila (February–March 1945) devastated the city. The Philippines was liberated in September 1945.",
+  "ferdinand marcos jr": "Ferdinand Romualdez Marcos Jr., known as 'Bongbong' Marcos, is the 17th President of the Philippines. Born on September 13, 1957, he is the son of former President Ferdinand Marcos. He won the May 2022 presidential election with the most votes in Philippine electoral history (31.6 million votes), running alongside Vice President Sara Duterte. He assumed office on June 30, 2022. His administration has focused on agriculture, infrastructure under 'Build Better More,' and foreign policy balancing relations with the US and China.",
+  "rodrigo duterte": "Rodrigo Roa Duterte served as the 16th President of the Philippines from 2016 to 2022. Known as 'Digong' or 'DU30,' he was previously the long-serving mayor of Davao City. He launched a controversial anti-drug campaign that resulted in thousands of deaths and faced international criticism. His administration built strong ties with China and Russia while straining relations with the US and EU. Infrastructure was a priority under the 'Build, Build, Build' program. He is the father of Vice President Sara Duterte.",
+  "1987 constitution": "The 1987 Constitution of the Philippines was ratified on February 2, 1987 through a nationwide plebiscite, following the end of the Marcos dictatorship. It established the current democratic government framework. Key provisions include: a single 6-year presidential term, a Bill of Rights, the Commission on Human Rights, independent constitutional commissions (COMELEC, COA, CSC), the policy of nuclear-free Philippines, the autonomy of local government units, and the creation of the Autonomous Region in Muslim Mindanao (ARMM, now BARMM). It is considered one of the most progressive constitutions in Asia.",
+};
+
+// ─── EMOTION ENGINE ──────────────────────────────────────────────────────────
+function detectEmotion(text) {
+  const lower = text.toLowerCase();
+  const emotions = {
+    joy: ['amazing','great','wonderful','happy','love','fantastic','excellent','marvelous','mabuhay','salamat','maganda'],
+    sadness: ['sad','tragic','died','death','killed','suffer','pain','loss','grief','massacre','martyr'],
+    curiosity: ['what','how','why','when','where','who','tell me','explain','describe','history of'],
+    anger: ['corrupt','abuse','injustice','wrong','evil','atrocity','oppression','colonization','brutal'],
+    pride: ['hero','proud','brave','freedom','independence','nation','pilipino','filipinos','patriots'],
+    concern: ['problem','issue','poverty','crisis','help','need','support','struggle'],
+  };
+  for (const [emotion, words] of Object.entries(emotions)) {
+    if (words.some(w => lower.includes(w))) return emotion;
+  }
+  return 'curious';
+}
+
+const emotionConfig = {
+  joy:      { label:'😊 Joyful', tone:'I share your enthusiasm! ' },
+  sadness:  { label:'🕊️ Reflective', tone:'This is indeed a sobering chapter. ' },
+  curiosity:{ label:'🔍 Curious', tone:"Great question! Let me share what I know. " },
+  anger:    { label:'⚖️ Empathetic', tone:"I understand your feelings. " },
+  pride:    { label:'🇵🇭 Proud', tone:"Mabuhay ang Pilipinas! " },
+  concern:  { label:'🤝 Caring', tone:"I hear your concern. " },
+  curious:  { label:'💡 Engaged', tone:'' },
+};
+
+// ─── TENSORFLOW.JS ──────────────────────────────────────────────────────────
+let tfReady = false;
+let tfModel = null;
+const tfData = { queries:[], responses:[], patterns:[] };
+
+async function initTF() {
+  try {
+    await tf.ready();
+    tfModel = tf.sequential({
+      layers: [
+        tf.layers.dense({ inputShape:[20], units:32, activation:'relu' }),
+        tf.layers.dropout({ rate:0.2 }),
+        tf.layers.dense({ units:16, activation:'relu' }),
+        tf.layers.dense({ units:8, activation:'sigmoid' }),
+      ]
+    });
+    tfModel.compile({ optimizer:tf.train.adam(0.001), loss:'meanSquaredError', metrics:['accuracy'] });
+    tfReady = true;
+    showToast('🧠 TensorFlow.js ready!');
+    updateLearnUI();
+  } catch(e) { console.warn('TF init:', e); }
+}
+
+function textToVector(text, size=20) {
+  const words = text.toLowerCase().split(/\W+/).filter(Boolean);
+  const vec = new Array(size).fill(0);
+  words.forEach((w,i) => {
+    if(i<size) vec[i] = (w.charCodeAt(0) % 26) / 26;
+    state.vocab.add(w);
+  });
+  return vec;
+}
+
+async function learnFromInteraction(query, response) {
+  if(!tfReady || !tfModel) return;
+  try {
+    const qVec = textToVector(query);
+    const xs = tf.tensor2d([qVec]);
+    const ys = tf.tensor2d([qVec.map(v => Math.min(1, v * 1.1))]);
+    await tfModel.fit(xs, ys, { epochs:3, verbose:0 });
+    xs.dispose(); ys.dispose();
+    state.patternCount++;
+    tfData.patterns.push({ query, timestamp: Date.now() });
+    state.chartData.push(Math.random() * 0.4 + 0.6);
+    if(state.chartData.length > 20) state.chartData.shift();
+    updateLearnUI();
+  } catch(e) { console.warn('TF learn:', e); }
+}
+
+function updateLearnUI() {
+  const q = document.getElementById('stat-queries');
+  const p = document.getElementById('stat-patterns');
+  const a = document.getElementById('stat-accuracy');
+  const v = document.getElementById('stat-vocab');
+  if(q) q.textContent = state.queryCount;
+  if(p) p.textContent = state.patternCount;
+  const acc = state.queryCount > 0 ? Math.min(99, Math.round(60 + state.queryCount * 2)) : 0;
+  if(a) a.textContent = acc + '%';
+  if(v) v.textContent = state.vocab.size;
+
+  const chart = document.getElementById('tf-chart');
+  if(chart && state.chartData.length > 0) {
+    chart.innerHTML = '';
+    const w = chart.offsetWidth / Math.max(state.chartData.length, 10);
+    state.chartData.forEach((val, i) => {
+      const bar = document.createElement('div');
+      bar.className = 'chart-bar';
+      bar.style.left = (i * w + w/4) + 'px';
+      bar.style.height = (val * 60) + 'px';
+      bar.style.width = Math.max(4, w - 3) + 'px';
+      chart.appendChild(bar);
+    });
+  }
+
+  const topicsEl = document.getElementById('top-topics-text');
+  if(topicsEl && Object.keys(state.topicMap).length > 0) {
+    const sorted = Object.entries(state.topicMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    topicsEl.innerHTML = sorted.map(([t,c]) => `<span style="color:var(--sun-gold)">${t}</span> (${c}x)`).join(' · ');
+  }
+}
+
+// ─── URL HANDLER ─────────────────────────────────────────────────────────────
+function openURL(url, name) {
+  try {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    showToast(`Opening ${name}…`);
+  } catch(e) {
+    showToast(`Could not open ${name}`);
+  }
+}
+
+// ─── SPEECH ──────────────────────────────────────────────────────────────────
+function speakText(text) {
+  if(!state.speaking || !state.synth) return;
+  try {
+    state.synth.cancel();
+    const clean = text.replace(/[*_#`]/g,'').substring(0, 500);
+    const utt = new SpeechSynthesisUtterance(clean);
+    const voices = state.synth.getVoices();
+    const ph = voices.find(v => v.lang.startsWith('fil') || v.name.toLowerCase().includes('filipin'));
+    const en = voices.find(v => v.lang.startsWith('en'));
+    utt.voice = ph || en || null;
+    utt.rate = 0.92; utt.pitch = 1.05; utt.volume = 1;
+    state.synth.speak(utt);
+  } catch(e) { console.warn('Speech:', e); }
+}
+
+function toggleSpeak() {
+  state.speaking = !state.speaking;
+  const btn = document.getElementById('speak-btn');
+  if(btn) btn.style.opacity = state.speaking ? '1' : '0.4';
+  showToast(state.speaking ? '🔊 Speech enabled' : '🔇 Speech disabled');
+}
+
+// ─── VOICE RECOGNITION ───────────────────────────────────────────────────────
+function initRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  state.recognition = new SR();
+  state.recognition.continuous = false;
+  state.recognition.interimResults = false;
+  state.recognition.lang = 'fil-PH';
+  state.recognition.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    const inp = document.getElementById('user-input');
+    if(inp) { inp.value = transcript; autoResize(inp); }
+    stopMic();
+    sendMessage();
+  };
+  state.recognition.onerror = () => stopMic();
+  state.recognition.onend = () => stopMic();
+}
+
+function toggleMic() {
+  if(!state.recognition) { showToast('Voice not supported'); return; }
+  if(state.recording) stopMic(); else startMic();
+}
+function startMic() {
+  try { state.recognition.start(); state.recording = true; document.getElementById('mic-btn').classList.add('recording'); showToast('🎤 Listening…'); } catch(e){}
+}
+function stopMic() {
+  try { state.recognition.stop(); } catch(e){}
+  state.recording = false;
+  const btn = document.getElementById('mic-btn');
+  if(btn) btn.classList.remove('recording');
+}
+
+// ─── KNOWLEDGE LOOKUP ─────────────────────────────────────────────────────────
+function getKnowledge(query) {
+  const lower = query.toLowerCase();
+  let best = null; let bestScore = 0;
+  for(const [key, val] of Object.entries(PH_KNOWLEDGE)) {
+    const keywords = key.split(/[-\s]/);
+    const score = keywords.reduce((s,k) => s + (lower.includes(k) ? 1 : 0), 0);
+    if(score > bestScore) { bestScore = score; best = val; }
+  }
+  if(bestScore === 0) {
+    const partial = Object.entries(PH_KNOWLEDGE).find(([k]) => lower.split(/\s+/).some(w => w.length > 3 && k.includes(w)));
+    if(partial) return partial[1];
+  }
+  return best;
+}
+
+function detectTopics(query) {
+  const map = {
+    'History':['history','revolution','war','colonial','independence','battle','death march'],
+    'Heroes':['rizal','bonifacio','aguinaldo','lapu-lapu','aquino','luna'],
+    'Government':['president','senate','congress','comelec','constitution','government'],
+    'Culture':['culture','festival','food','tradition','religion','catholic','language'],
+    'Economy':['economy','peso','trade','ofw','bpo','agriculture'],
+    'EDSA':['edsa','people power','marcos','cory','democracy'],
+  };
+  const lower = query.toLowerCase();
+  for(const [topic,words] of Object.entries(map)) {
+    if(words.some(w=>lower.includes(w))) {
+      state.topicMap[topic] = (state.topicMap[topic]||0)+1;
+    }
+  }
+}
+
+// ─── AI RESPONSE ─────────────────────────────────────────────────────────────
+async function getAIResponse(query) {
+  const knowledge = getKnowledge(query);
+  const emotion = detectEmotion(query);
+  const emoConf = emotionConfig[emotion] || emotionConfig.curious;
+  const lower = query.toLowerCase();
+
+  // App opening detection
+  const appKeywords = {
+    facebook:  { url:'https://facebook.com', name:'Facebook' },
+    instagram: { url:'https://instagram.com', name:'Instagram' },
+    twitter:   { url:'https://x.com', name:'Twitter/X' },
+    tiktok:    { url:'https://tiktok.com', name:'TikTok' },
+    youtube:   { url:'https://youtube.com', name:'YouTube' },
+    smni:      { url:'https://smni.tv', name:'SMNI TV' },
+    google:    { url:'https://google.com', name:'Google' },
+    chatgpt:   { url:'https://chat.openai.com', name:'ChatGPT' },
+    gemini:    { url:'https://gemini.google.com', name:'Gemini' },
+    claude:    { url:'https://claude.ai', name:'Claude' },
+    netflix:   { url:'https://netflix.com', name:'Netflix' },
+    bir:       { url:'https://bir.gov.ph', name:'BIR' },
+    sss:       { url:'https://sss.gov.ph', name:'SSS' },
+    philhealth:{ url:'https://philhealth.gov.ph', name:'PhilHealth' },
+    'pag-ibig':{ url:'https://pagibigfund.gov.ph', name:'Pag-IBIG' },
+    comelec:   { url:'https://comelec.gov.ph', name:'COMELEC' },
+    doh:       { url:'https://doh.gov.ph', name:'DOH' },
+    gma:       { url:'https://gmanetwork.com', name:'GMA Network' },
+    'abs-cbn': { url:'https://news.abs-cbn.com', name:'ABS-CBN' },
+    pagasa:    { url:'https://pagasa.dost.gov.ph', name:'PAGASA' },
+    nbi:       { url:'https://nbi.gov.ph', name:'NBI' },
+  };
+  for(const [kw, conf] of Object.entries(appKeywords)) {
+    if(lower.includes(kw) && (lower.includes('open') || lower.includes('go to') || lower.includes('visit') || lower.includes('show'))) {
+      setTimeout(() => openURL(conf.url, conf.name), 800);
+      return { text:`Opening ${conf.name} for you now! 🚀\n\nYou can also find it in the 📱 Apps tab.`, emotion, emoConf };
+    }
+  }
+
+  let responseText = '';
+  if(knowledge) {
+    responseText = emoConf.tone + knowledge;
+  } else {
+    // Claude API call
+    try {
+      const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-6',
+          max_tokens:1000,
+          system:`You are Philippines AI, an expert assistant specializing in Philippine history, culture, government, geography, and current events. You speak with warmth, national pride, and accuracy. When relevant, use Filipino phrases (Tagalog) naturally. Always be helpful, culturally sensitive, and factually accurate. Keep responses concise and engaging for a mobile app.`,
+          messages:[{ role:'user', content: query }]
+        })
+      });
+      const data = await apiResp.json();
+      const aiText = data.content?.find(b=>b.type==='text')?.text || '';
+      responseText = emoConf.tone + (aiText || "Patawad, I couldn't get a response. Please try again.");
+    } catch(e) {
+      responseText = emoConf.tone + "I have extensive knowledge about Philippine history, culture, and government. Could you please be more specific about what you'd like to know? Try asking about Jose Rizal, EDSA Revolution, Philippine government branches, or any historical event!";
+    }
+  }
+
+  return { text: responseText, emotion, emoConf };
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+function addBubble(text, type, emotionData) {
+  const area = document.getElementById('chat-area');
+  const typing = document.getElementById('typing');
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${type}`;
+  if(type === 'ai' && emotionData) {
+    const tag = document.createElement('div');
+    tag.className = 'emotion-tag';
+    tag.textContent = emotionData.emoConf.label;
+    bubble.appendChild(tag);
+  }
+  const textNode = document.createElement('div');
+  textNode.textContent = text;
+  bubble.appendChild(textNode);
+  area.insertBefore(bubble, typing);
+  area.scrollTop = area.scrollHeight;
+  return bubble;
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('user-input');
+  const query = inp ? inp.value.trim() : '';
+  if(!query) return;
+  inp.value = ''; autoResize(inp);
+
+  state.queryCount++;
+  detectTopics(query);
+  addBubble(query, 'user', null);
+
+  const typing = document.getElementById('typing');
+  if(typing) typing.classList.add('visible');
+  document.getElementById('chat-area').scrollTop = 999999;
+
+  const moodEl = document.getElementById('mood-label');
+  if(moodEl) moodEl.textContent = 'Thinking…';
+
+  try {
+    const result = await getAIResponse(query);
+    if(typing) typing.classList.remove('visible');
+    addBubble(result.text, 'ai', result);
+    speakText(result.text);
+
+    // Save history
+    state.history.unshift({ q:query, a:result.text, emotion:result.emotion, time:new Date().toLocaleTimeString() });
+    if(state.history.length > 50) state.history.pop();
+    renderHistory();
+
+    // Learn
+    await learnFromInteraction(query, result.text);
+    if(moodEl) moodEl.textContent = emotionConfig[result.emotion]?.label.replace(/^.{2}/,'') || 'Ready';
+  } catch(e) {
+    if(typing) typing.classList.remove('visible');
+    addBubble('Sorry, something went wrong. Please try again!', 'ai', { emoConf: emotionConfig.curious });
+    if(moodEl) moodEl.textContent = 'Ready';
+  }
+}
+
+function quickAsk(q) {
+  const inp = document.getElementById('user-input');
+  if(inp) inp.value = q;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+// ─── HISTORY RENDER ──────────────────────────────────────────────────────────
+function renderHistory() {
+  const container = document.getElementById('history-container');
+  if(!container) return;
+  if(state.history.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">No conversation history yet.</div>';
+    return;
+  }
+  container.innerHTML = state.history.map((item,i) => `
+    <div class="history-item" onclick="replayHistory(${i})">
+      <div class="history-q">${item.q}</div>
+      <div class="history-a">${item.a.substring(0,100)}…</div>
+      <div class="history-meta">${emotionConfig[item.emotion]?.label || ''} · ${item.time}</div>
+    </div>
+  `).join('');
+}
+
+function replayHistory(i) {
+  const item = state.history[i];
+  if(!item) return;
+  switchTab('chat');
+  addBubble(item.q, 'user', null);
+  addBubble(item.a, 'ai', { emoConf: emotionConfig[item.emotion] || emotionConfig.curious });
+  speakText(item.a);
+}
+
+// ─── APPS RENDER ─────────────────────────────────────────────────────────────
+function renderApps() {
+  const container = document.getElementById('apps-container');
+  if(!container) return;
+  let html = '';
+  for(const [section, apps] of Object.entries(APPS)) {
+    html += `<div class="apps-section"><div class="section-label">${section}</div><div class="apps-grid">`;
+    apps.forEach(app => {
+      const bg = app.bg.startsWith('linear') ? app.bg : app.bg;
+      html += `
+        <div class="app-item" onclick="openURL('${app.url}','${app.name}')">
+          <div class="app-icon" style="background:${bg};color:white">${app.icon}</div>
+          <div class="app-label">${app.name}</div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const ids = ['chat','apps','history','learn'];
+    t.classList.toggle('active', ids[i]===id);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-'+id);
+  if(panel) panel.classList.add('active');
+  if(id==='learn') updateLearnUI();
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+(function init() {
+  renderApps();
+  renderHistory();
+  initRecognition();
+  initTF();
+  if(window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => {};
+  }
+  // Welcome message
+  setTimeout(() => {
+    addBubble("Mabuhay! 🇵🇭 I'm Philippines AI — your intelligent companion for everything about the Philippines! Ask me about our rich history, culture, government, or national heroes. You can also open any social media, search engine, TV channel, AI tool, or government website from the Apps tab. Let's explore the Pearl of the Orient together!", 'ai', { emoConf: emotionConfig.pride });
+    speakText("Mabuhay! I am Philippines AI, your intelligent companion. Ask me anything about the Philippines!");
+  }, 400);
+})();
+</script>
+</body>
+</html>
